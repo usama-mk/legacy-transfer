@@ -6,7 +6,9 @@ import CategoryPage from './components/CategoryPage.jsx';
 import Backup from './components/Backup.jsx';
 import TrusteeManagement from './components/TrusteeManagement.jsx';
 import ReleaseConditions from './components/ReleaseConditions.jsx';
+import EmailSettings from './components/EmailSettings.jsx';
 import { updateLastActivity } from './utils/storage';
+import { checkAndProcessReleaseConditions, checkAndSendBackup } from './utils/releaseService';
 import './App.css';
 
 function App() {
@@ -14,6 +16,7 @@ function App() {
   const [showBackup, setShowBackup] = useState(false);
   const [showTrustees, setShowTrustees] = useState(false);
   const [showReleaseConditions, setShowReleaseConditions] = useState(false);
+  const [showEmailSettings, setShowEmailSettings] = useState(false);
 
   const handleLogin = async (key) => {
     setMasterKey(key);
@@ -21,9 +24,29 @@ function App() {
     await updateLastActivity(Date.now());
   };
 
-  // Update activity on any interaction
+  // Check release conditions and backup on login
   useEffect(() => {
     if (masterKey) {
+      // Check release conditions (only once on login, not repeatedly)
+      checkAndProcessReleaseConditions(masterKey).then(result => {
+        if (result.shouldRelease && result.released) {
+          console.log('Information automatically released to trustees');
+          // Could show a notification here if needed
+        }
+      }).catch(err => {
+        console.error('Error checking release conditions:', err);
+      });
+
+      // Check and send backup if needed
+      checkAndSendBackup(masterKey).then(result => {
+        if (result.shouldSend && result.sent) {
+          console.log('Automatic backup email sent');
+        }
+      }).catch(err => {
+        console.error('Error checking backup:', err);
+      });
+
+      // Update activity on any interaction
       const activityInterval = setInterval(async () => {
         await updateLastActivity(Date.now());
       }, 60000); // Update every minute while active
@@ -67,6 +90,7 @@ function App() {
                   onImport={() => setShowBackup(true)}
                   onTrustees={() => setShowTrustees(true)}
                   onReleaseConditions={() => setShowReleaseConditions(true)}
+                  onEmailSettings={() => setShowEmailSettings(true)}
                 />
               ) : (
                 <Navigate to="/login" replace />
@@ -101,6 +125,12 @@ function App() {
           <ReleaseConditions
             masterKey={masterKey}
             onClose={() => setShowReleaseConditions(false)}
+          />
+        )}
+
+        {showEmailSettings && (
+          <EmailSettings
+            onClose={() => setShowEmailSettings(false)}
           />
         )}
       </div>

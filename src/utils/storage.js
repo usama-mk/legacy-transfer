@@ -1,28 +1,28 @@
 /**
  * IndexedDB storage utilities using localForage
  */
-import localforage from 'localforage';
-import { v4 as uuidv4 } from 'uuid';
+import localforage from "localforage";
+import { v4 as uuidv4 } from "uuid";
 
 // Initialize localForage instance
 const db = localforage.createInstance({
-  name: 'legacyOrganizer',
-  storeName: 'pages'
+  name: "legacyOrganizer",
+  storeName: "pages",
 });
 
 const settingsDb = localforage.createInstance({
-  name: 'legacyOrganizer',
-  storeName: 'settings'
+  name: "legacyOrganizer",
+  storeName: "settings",
 });
 
 const trusteesDb = localforage.createInstance({
-  name: 'legacyOrganizer',
-  storeName: 'trustees'
+  name: "legacyOrganizer",
+  storeName: "trustees",
 });
 
 const releaseConditionsDb = localforage.createInstance({
-  name: 'legacyOrganizer',
-  storeName: 'releaseConditions'
+  name: "legacyOrganizer",
+  storeName: "releaseConditions",
 });
 
 /**
@@ -33,13 +33,19 @@ const releaseConditionsDb = localforage.createInstance({
  * @param {string} iv - Base64-encoded IV
  * @param {number} lastModified - Timestamp
  */
-export async function savePage(pageId, category, encryptedBlob, iv, lastModified) {
+export async function savePage(
+  pageId,
+  category,
+  encryptedBlob,
+  iv,
+  lastModified
+) {
   const pageData = {
     id: pageId,
     category,
     encryptedBlob,
     iv,
-    lastModified
+    lastModified,
   };
   await db.setItem(pageId, pageData);
 }
@@ -78,7 +84,7 @@ export async function deletePage(pageId) {
  * @returns {Promise<Object|null>} Settings object or null
  */
 export async function getSettings() {
-  return await settingsDb.getItem('settings');
+  return await settingsDb.getItem("settings");
 }
 
 /**
@@ -86,7 +92,7 @@ export async function getSettings() {
  * @param {Object} settings - Settings object (salt, iterations, etc.)
  */
 export async function saveSettings(settings) {
-  await settingsDb.setItem('settings', settings);
+  await settingsDb.setItem("settings", settings);
 }
 
 /**
@@ -139,7 +145,7 @@ export async function deleteTrustee(trusteeId) {
  * @returns {Promise<Object|null>} Release conditions object or null
  */
 export async function getReleaseConditions() {
-  return await releaseConditionsDb.getItem('conditions');
+  return await releaseConditionsDb.getItem("conditions");
 }
 
 /**
@@ -147,7 +153,7 @@ export async function getReleaseConditions() {
  * @param {Object} conditions - Release conditions object
  */
 export async function saveReleaseConditions(conditions) {
-  await releaseConditionsDb.setItem('conditions', conditions);
+  await releaseConditionsDb.setItem("conditions", conditions);
 }
 
 /**
@@ -162,3 +168,50 @@ export async function updateLastActivity(timestamp) {
   }
 }
 
+/**
+ * Get Resend API key from environment variable
+ * @returns {string|null} API key or null
+ */
+export function getResendApiKey() {
+  return import.meta.env.VITE_RESEND_API_KEY || null;
+}
+
+/**
+ * Get Resend from email address from settings
+ * @returns {Promise<string>} From email address
+ */
+export async function getResendFromEmail() {
+  const settings = await getSettings();
+  return (
+    settings?.resendFromEmail || "Legacy Organizer <onboarding@resend.dev>"
+  );
+}
+
+/**
+ * Save Resend from email address to settings
+ * @param {string} fromEmail - From email address
+ */
+export async function saveResendFromEmail(fromEmail) {
+  const settings = (await getSettings()) || {};
+  settings.resendFromEmail = fromEmail;
+  await saveSettings(settings);
+}
+
+/**
+ * Get backup email settings
+ * @returns {Promise<Object|null>} Backup email settings
+ */
+export async function getBackupEmailSettings() {
+  const settings = await getSettings();
+  return settings?.backupEmail || null;
+}
+
+/**
+ * Save backup email settings
+ * @param {Object} backupEmail - Backup email settings (email, frequency, lastSent)
+ */
+export async function saveBackupEmailSettings(backupEmail) {
+  const settings = (await getSettings()) || {};
+  settings.backupEmail = backupEmail;
+  await saveSettings(settings);
+}

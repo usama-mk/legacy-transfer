@@ -31,7 +31,7 @@ const CATEGORIES = [
   }
 ];
 
-function Dashboard({ onBackup, onImport, onTrustees, onReleaseConditions }) {
+function Dashboard({ onBackup, onImport, onTrustees, onReleaseConditions, onEmailSettings }) {
   const navigate = useNavigate();
 
   const handleCategoryClick = (categoryId) => {
@@ -53,6 +53,9 @@ function Dashboard({ onBackup, onImport, onTrustees, onReleaseConditions }) {
           </button>
           <button onClick={onImport} className="btn-secondary">
             📤 Import Backup
+          </button>
+          <button onClick={onEmailSettings} className="btn-secondary">
+            ⚙️ Email Settings
           </button>
         </div>
       </div>

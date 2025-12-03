@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { getAllPages, getTrustees } from '../utils/storage';
 import { decryptData } from '../utils/crypto';
+import { sendEmail } from '../utils/emailService';
+import { Resend } from 'resend';
 
 const CATEGORY_NAMES = {
   'digital-accounts': 'Digital Accounts',
@@ -13,6 +15,8 @@ function ReleaseDataModal({ masterKey, onClose }) {
   const [loading, setLoading] = useState(true);
   const [formattedData, setFormattedData] = useState('');
   const [trustees, setTrustees] = useState([]);
+  const [sendingEmail, setSendingEmail] = useState(false);
+  const [emailStatus, setEmailStatus] = useState('');
 
   useEffect(() => {
     loadAndFormatData();
@@ -117,31 +121,64 @@ function ReleaseDataModal({ masterKey, onClose }) {
     URL.revokeObjectURL(url);
   };
 
-  const handleEmail = () => {
+  const handleEmail = async () => {
     if (trustees.length === 0) {
       alert('No trustees found. Please add trustees first.');
       return;
     }
 
-    const subject = encodeURIComponent('Legacy Organizer - Information Release');
-    const body = encodeURIComponent(
-      `Dear Trustee(s),\n\n` +
-      `This email contains the released information from Legacy Organizer.\n\n` +
-      `Please find the information attached or in the email body below.\n\n` +
-      `---\n\n` +
-      formattedData +
-      `\n\n---\n\n` +
-      `This information was released on ${new Date().toLocaleString()}.\n\n` +
-      `Please keep this information secure and confidential.\n\n` +
-      `Best regards,\n` +
-      `Legacy Organizer`
-    );
+    setSendingEmail(true);
+    setEmailStatus('Sending emails...');
 
-    // Create mailto link with all trustee emails
-    const trusteeEmails = trustees.map(t => t.email).join(',');
-    const mailtoLink = `mailto:${trusteeEmails}?subject=${subject}&body=${body}`;
-    
-    window.location.href = mailtoLink;
+    try {
+      // Prepare email content
+      const emailSubject = 'Legacy Organizer - Information Release';
+      const emailBody = `
+Dear Trustee(s),
+
+This email contains the released information from Legacy Organizer.
+
+Please find the information below. This information was released on ${new Date().toLocaleString()}.
+
+Please keep this information secure and confidential.
+
+---
+${formattedData}
+---
+
+This information was released on ${new Date().toLocaleString()}.
+
+Best regards,
+Legacy Organizer
+      `.trim();
+
+      // Send email to each trustee using email service
+      const emailPromises = trustees.map(async (trustee) => {
+        const result = await sendEmail(trustee.email, emailSubject, emailBody);
+        return {
+          trustee: trustee.name,
+          success: result.success,
+          error: result.error,
+        };
+      });
+
+      const results = await Promise.all(emailPromises);
+      const successful = results.filter(r => r.success);
+      const failed = results.filter(r => !r.success);
+
+      if (failed.length > 0) {
+        setEmailStatus(
+          `Sent to ${successful.length} trustee(s). Failed: ${failed.map(f => f.trustee).join(', ')}`
+        );
+      } else {
+        setEmailStatus(`✅ Successfully sent emails to all ${successful.length} trustee(s)!`);
+      }
+    } catch (err) {
+      console.error('Error sending emails:', err);
+      setEmailStatus(`Error: ${err.message || 'Failed to send emails'}`);
+    } finally {
+      setSendingEmail(false);
+    }
   };
 
   if (loading) {
@@ -185,11 +222,17 @@ function ReleaseDataModal({ masterKey, onClose }) {
           <button 
             onClick={handleEmail} 
             className="btn-primary"
-            disabled={trustees.length === 0}
+            disabled={trustees.length === 0 || sendingEmail}
           >
-            📧 Email to Trustees
+            {sendingEmail ? '📧 Sending...' : '📧 Send Email to Trustees'}
           </button>
         </div>
+
+        {emailStatus && (
+          <div className={`email-status ${emailStatus.includes('✅') ? 'success' : emailStatus.includes('Error') ? 'error' : 'info'}`}>
+            {emailStatus}
+          </div>
+        )}
 
         {trustees.length === 0 && (
           <div className="release-warning">
